@@ -18,6 +18,7 @@
 4. [Приклади JSON](#4-приклади-json)
 5. [Обмеження, які варто знати](#5-обмеження-які-варто-знати)
 6. [Ваша частина реалізації](#6-ваша-частина-реалізації)
+7. [Нові маршрути API (Деталізація замовлень та Статистика)](#7-нові-маршрути-api)
 
 ---
 
@@ -326,3 +327,57 @@ else
 | message містить "No terminal found" | "Неправильне місто. Зверніться до адміністратора." |
 
 ---
+
+## 7. Нові маршрути API
+
+### 7.1 Подія: `order-details` (Syrve → CRM)
+Надсилається при кожній зміні в замовленні на касі. Містить повний склад замовлення, суми, знижки та статуси страв.
+
+**Приклад JSON:**
+```json
+{
+  "eventType": "order-details",
+  "orderId": "578f4315-b779-4937-8300-66cbb724b783",
+  "number": 42,
+  "status": "Open",
+  "resultSum": 850.00,
+  "discountPercent": 5.00,
+  "restaurantCity": "Khmelnytskyi",
+  "waiterId": "7dff49de-af24-4427-8b22-0d08080b0456",
+  "waiterName": "Мазур Ангеліна",
+  "orderItems": [
+    {
+      "itemId": "8a36fbd0-6516-44b2-950a-ae6d6a021572",
+      "productId": "1c809f29-dacf-4888-8cfc-d03b32a683e8",
+      "productName": "Борщ",
+      "amount": 1,
+      "price": 120.00,
+      "resultSum": 114.00,
+      "status": "CookingStarted",
+      "printTime": "2026-03-09 12:15:00",
+      "course": "First",
+      "guestIndex": 1,
+      "modifiers": [
+        { "productName": "Сметана", "amount": 1, "price": 15.00, "resultSum": 15.00 }
+      ]
+    }
+  ]
+}
+```
+
+### 7.2 Призначення офіціанта (`ASSIGN WAITER`)
+**Endpoint:** `POST https://middleware.krainamriy.fun/api/assign-waiter`
+
+**Body:**
+```json
+{
+  "orderId": "UUID замовлення",
+  "employeeId": "UUID офіціанта",
+  "city": "Khmelnytskyi"
+}
+```
+
+### 7.3 Статистика та Моніторинг
+Можна перевірити останні події та статус підключення.
+**Endpoint:** `GET https://middleware.krainamriy.fun/api/syrve/webhook/stats`
+**Header:** `X-API-Key: 2f72839a224f4544963c9eaa7abcc2f6`
