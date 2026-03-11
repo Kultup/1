@@ -1,6 +1,6 @@
 # Синхронізація Курсу та Гостя: зворотня передача з CRM у Syrve
 
-**Дата:** 2026-03-04
+**Дата:** 2026-03-11
 
 ---
 
@@ -18,7 +18,7 @@
 4. [Приклади JSON](#4-приклади-json)
 5. [Обмеження, які варто знати](#5-обмеження-які-варто-знати)
 6. [Ваша частина реалізації](#6-ваша-частина-реалізації)
-7. [Нові маршрути API (Деталізація замовлень та Статистика)](#7-нові-маршрути-api)
+7. [Нові маршрути API (Деталізація замовлень)](#7-нові-маршрути-api)
 
 ---
 
@@ -86,11 +86,26 @@ POST https://middleware.krainamriy.fun/api/update-order-items
 | `city` | `string` | Місто закладу | Поле "Місто" або "Заклад" у Deal |
 | `items` | `array` | Список позицій | Рядки сабформи |
 | `items[].itemId` | `string (UUID)` | ID позиції у Syrve | Приховане поле `Syrve Item ID` рядка сабформи |
-| `items[].productId` | `string (UUID)` | ID продукту у Syrve | Поле рядка сабформи |
 | `items[].course` | `integer` | Номер курсу | Поле "Курс" рядка сабформи (конвертований у число, див. нижче) |
 | `items[].guestNumber` | `integer` | Номер гостя | Поле "Гість, No" рядка сабформи |
 
-> Поле `city` повинно точно збігатися зі значеннями у нашому списку терміналів: `Khmelnytskyi`, `Lutsk`, `Uzhhorod`. Якщо у вас інша назва -- дайте знати, звіримо.
+> Поле `city` повинно точно збігатися зі значеннями у нашому списку терміналів (див. нижче). Якщо у вас інша назва -- дайте знати, звіримо.
+
+### Список терміналів (значення `city`)
+
+| `city` | Заклад |
+|--------|--------|
+| `Khmelnytskyi` | Хмельницький |
+| `Lutsk` | Луцьк |
+| `Uzhhorod` | Ужгород |
+| `Ternopil` | Тернопіль |
+| `Chernivtsi` | Чернівці |
+| `Kyiv-Obolon` | Київ Оболонь |
+| `Merkuriy` | Меркурій |
+| `Lviv` | Львів Антоновича |
+| `Zhytomyr` | Житомир |
+| `Rudne` | Рудне |
+| `Demo` | Демо-стенд для CRMiUM |
 
 ### Значення поля "Курс"
 
@@ -132,7 +147,6 @@ POST https://middleware.krainamriy.fun/api/update-order-items
       "productName": "Гарного дня!",
       "amount": 1.0,
       "course": 1,
-      "courseName": "First",
       "guestNumber": 1,
       "guestName": "Гість 1"
     },
@@ -142,7 +156,6 @@ POST https://middleware.krainamriy.fun/api/update-order-items
       "productName": "бургер з куркою",
       "amount": 1.0,
       "course": 1,
-      "courseName": "First",
       "guestNumber": 1,
       "guestName": "Гість 1"
     }
@@ -165,13 +178,11 @@ POST https://middleware.krainamriy.fun/api/update-order-items
   "items": [
     {
       "itemId": "8a36fbd0-6516-44b2-950a-ae6d6a021572",
-      "productId": "1c809f29-dacf-4888-8cfc-d03b32a683e8",
       "course": 1,
       "guestNumber": 1
     },
     {
       "itemId": "3dbd5b37-1127-4ec2-9861-48b3ab0890df",
-      "productId": "2b322680-8007-40f9-a0c2-0233cbf998f7",
       "course": 2,
       "guestNumber": 2
     }
@@ -190,11 +201,11 @@ POST https://middleware.krainamriy.fun/api/update-order-items
   "orderId": "578f4315-b779-4937-8300-66cbb724b783",
   "itemsCount": 2,
   "terminal": "Khmelnytskyi",
-  "timestamp": "2026-03-04 10:00:00"
+  "timestamp": "2026-03-11 10:00:00"
 }
 ```
 
-**HTTP 400/404 -- каса не знайдена (перевірте значення `city`):**
+**HTTP 400 -- каса не знайдена (перевірте значення `city`):**
 
 ```json
 {
@@ -203,21 +214,12 @@ POST https://middleware.krainamriy.fun/api/update-order-items
 }
 ```
 
-**HTTP 503 -- каса вимкнена або не в мережі:**
+**HTTP 502 -- каса вимкнена або не в мережі:**
 
 ```json
 {
   "status": "error",
   "message": "Plugin at Khmelnytskyi (10.0.102.30) is unreachable: Connection refused"
-}
-```
-
-**HTTP 422 -- замовлення вже закрите або оплачене:**
-
-```json
-{
-  "status": "error",
-  "message": "Order status Bill does not allow item updates"
 }
 ```
 
@@ -247,7 +249,6 @@ POST https://middleware.krainamriy.fun/api/update-order-items
 | Syrve Item ID | Рядок сабформи (приховане) | Передається як `items[].itemId` |
 | Курс | Рядок сабформи | Передається як `items[].course` |
 | Гість, No | Рядок сабформи | Передається як `items[].guestNumber` |
-| Product ID | Рядок сабформи | Передається як `items[].productId` |
 
 > API-назви можна знайти у: **CRM → Settings → Modules → Deals / Subforms → Fields**.
 
@@ -272,7 +273,6 @@ for each row in subformRows
 
     item = map();
     item.put("itemId",      row.get("Syrve_Item_ID"));
-    item.put("productId",   row.get("Product_ID"));
     item.put("course",      courseNum);
     item.put("guestNumber", row.get("Guest_Number").toLong());
     itemsList.add(item);
@@ -323,7 +323,6 @@ else
 |-------------------|-----------------------|
 | `status: success` | "Зміни передані на касу" |
 | message містить "unreachable" | "Каса недоступна. Перевірте чи увімкнена." |
-| message містить "Bill" | "Замовлення вже оплачене, зміни неможливі." |
 | message містить "No terminal found" | "Неправильне місто. Зверніться до адміністратора." |
 
 ---
@@ -331,6 +330,7 @@ else
 ## 7. Нові маршрути API
 
 ### 7.1 Подія: `order-details` (Syrve → CRM)
+
 Надсилається при кожній зміні в замовленні на касі. Містить повний склад замовлення, суми, знижки та статуси страв.
 
 **Приклад JSON:**
@@ -338,6 +338,7 @@ else
 {
   "eventType": "order-details",
   "orderId": "578f4315-b779-4937-8300-66cbb724b783",
+  "reserveId": "90df20da-933f-4b49-887b-0808d121c76f",
   "number": 42,
   "status": "Open",
   "resultSum": 850.00,
@@ -345,6 +346,10 @@ else
   "restaurantCity": "Khmelnytskyi",
   "waiterId": "7dff49de-af24-4427-8b22-0d08080b0456",
   "waiterName": "Мазур Ангеліна",
+  "guests": [
+    { "number": 1, "name": "Гість 1" },
+    { "number": 2, "name": "Гість 2" }
+  ],
   "orderItems": [
     {
       "itemId": "8a36fbd0-6516-44b2-950a-ae6d6a021572",
@@ -354,8 +359,10 @@ else
       "price": 120.00,
       "resultSum": 114.00,
       "status": "CookingStarted",
-      "printTime": "2026-03-09 12:15:00",
-      "course": "First",
+      "printTime": "2026-03-11 12:15:00",
+      "course": 1,
+      "guestId": "uuid-гостя",
+      "guestName": "Гість 1",
       "guestIndex": 1,
       "modifiers": [
         { "productName": "Сметана", "amount": 1, "price": 15.00, "resultSum": 15.00 }
@@ -365,19 +372,16 @@ else
 }
 ```
 
-### 7.2 Призначення офіціанта (`ASSIGN WAITER`)
+### 7.2 Призначення офіціанта (`assign-waiter`)
+
 **Endpoint:** `POST https://middleware.krainamriy.fun/api/assign-waiter`
 
 **Body:**
 ```json
 {
   "orderId": "UUID замовлення",
+  "reserveId": "UUID резервації (якщо є)",
   "employeeId": "UUID офіціанта",
   "city": "Khmelnytskyi"
 }
 ```
-
-### 7.3 Статистика та Моніторинг
-Можна перевірити останні події та статус підключення.
-**Endpoint:** `GET https://middleware.krainamriy.fun/api/syrve/webhook/stats`
-**Header:** `X-API-Key: 2f72839a224f4544963c9eaa7abcc2f6`
